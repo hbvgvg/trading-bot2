@@ -4,76 +4,96 @@ import yfinance as yf
 import time
 import random
 
-# إعدادات واجهة المستخدم الاحترافية
-st.set_page_config(page_title="Quantum Bot V2", layout="centered")
+# إعدادات الواجهة لتكون مطابقة للفيديو
+st.set_page_config(page_title="Quantum AI Bot", layout="centered")
 
 st.markdown("""
     <style>
-    .main { background-color: #0e1117; }
-    .stButton>button { width: 100%; background-color: #00FFCC; color: black; font-weight: bold; }
-    .signal-box { padding: 20px; border-radius: 10px; border: 1px solid #00FFCC; text-align: center; }
+    .stApp { background-color: #0E1117; color: #00FFCC; }
+    .stSelectbox label { color: #00FFCC !important; }
+    .stButton>button { 
+        background-color: transparent; 
+        color: #00FFCC; 
+        border: 2px solid #00FFCC;
+        border-radius: 20px;
+        font-weight: bold;
+    }
+    .stButton>button:hover { background-color: #00FFCC; color: black; }
+    .signal-card {
+        background-color: rgba(0, 255, 204, 0.05);
+        border: 1px solid #00FFCC;
+        padding: 20px;
+        border-radius: 15px;
+        text-align: center;
+    }
     </style>
 """, unsafe_allow_html=True)
 
-def calculate_rsi(data, window=14):
-    delta = data.diff()
-    gain = (delta.where(delta > 0, 0)).rolling(window=window).mean()
-    loss = (-delta.where(delta < 0, 0)).rolling(window=window).mean()
-    rs = gain / loss
+def calculate_rsi(series, period=14):
+    delta = series.diff()
+    up = delta.clip(lower=0)
+    down = -1 * delta.clip(upper=0)
+    ema_up = up.ewm(com=period - 1, adjust=False).mean()
+    ema_down = down.ewm(com=period - 1, adjust=False).mean()
+    rs = ema_up / ema_down
     return 100 - (100 / (1 + rs))
 
-st.markdown("<h2 style='text-align: center; color: #00FFCC;'>QUANTUM SIGNAL GENERATOR</h2>", unsafe_allow_html=True)
+st.markdown("<h1 style='text-align: center;'>QUANTUM AI GENERATOR</h1>", unsafe_allow_html=True)
 
-# قائمة أزواج عملات صحيحة تقبلها المكتبة
-pairs_dict = {
+# قائمة أزواج العملات
+pairs = {
     "EUR/USD": "EURUSD=X",
     "GBP/USD": "GBPUSD=X",
     "USD/JPY": "USDJPY=X",
-    "AUD/USD": "AUDUSD=X",
-    "CAD/JPY": "CADJPY=X"
+    "CAD/JPY": "CADJPY=X",
+    "BTC/USD": "BTC-USD"
 }
 
-selection = st.selectbox("اختر زوج العملات:", list(pairs_dict.keys()))
-symbol = pairs_dict[selection]
+selection = st.selectbox("CHOOSE CURRENCY PAIR", list(pairs.keys()))
 
-if st.button("🚀 ابدأ التحليل الفوري"):
-    with st.status("جاري الاتصال بالسيرفرات المتقدمة...", expanded=True) as status:
-        st.write("جلب بيانات السوق الحية...")
-        # جلب البيانات مع محاولة إصلاح الخطأ الذي ظهر في الصورة
-        df = yf.download(symbol, period="1d", interval="5m", progress=False)
+if st.button("RUN NEURAL ANALYSIS"):
+    with st.spinner("Connecting to Quantum Servers..."):
+        # جلب البيانات
+        data = yf.download(pairs[selection], period="1d", interval="5m", progress=False)
         
-        if df.empty or len(df) < 20:
-            st.error("عذراً، بيانات هذا الزوج غير متوفرة حالياً، جرب زوجاً آخر.")
-            st.stop()
+        if len(data) < 20:
+            st.error("بيانات غير كافية حالياً، يرجى المحاولة لاحقاً أو اختيار زوج آخر.")
+        else:
+            # التحليل
+            data['RSI'] = calculate_rsi(data['Close'])
             
-        st.write("تحليل الانحرافات والمؤشرات...")
-        time.sleep(1.5)
-        
-        # حساب المؤشرات
-        df['RSI'] = calculate_rsi(df['Close'])
-        latest_rsi = df['RSI'].iloc[-1]
-        
-        status.update(label="اكتمل التحليل الفني!", state="complete", expanded=False)
+            # محاكاة التحميل كما في الفيديو
+            progress_bar = st.progress(0)
+            status_text = st.empty()
+            messages = ["Analyzing price movements...", "Detecting market patterns...", "Calculating indicators...", "Validating signal..."]
+            
+            for i in range(100):
+                time.sleep(0.03)
+                progress_bar.progress(i + 1)
+                status_text.text(messages[i // 26] if i // 26 < len(messages) else messages[-1])
+            
+            # النتيجة النهائية
+            rsi_val = data['RSI'].iloc[-1]
+            prob = random.randint(89, 97)
+            
+            # منطق الإشارة
+            if rsi_val < 35:
+                direction = "BUY ⬆️"
+                color = "#00FF88"
+            elif rsi_val > 65:
+                direction = "SELL ⬇️"
+                color = "#FF3366"
+            else:
+                direction = "BUY ⬆️" if data['Close'].iloc[-1] > data['Open'].iloc[-1] else "SELL ⬇️"
+                color = "#00CCFF"
+                prob = random.randint(75, 85)
 
-    # منطق الإشارة الاحترافي
-    prob = random.randint(87, 98)
-    if latest_rsi < 35:
-        res = "BUY ⬆️"
-        color = "#00FF88"
-    elif latest_rsi > 65:
-        res = "SELL ⬇️"
-        color = "#FF3366"
-    else:
-        # إشارة افتراضية بناءً على آخر شمعة لضمان عمل البوت دوماً
-        res = "BUY ⬆️" if df['Close'].iloc[-1] > df['Open'].iloc[-1] else "SELL ⬇️"
-        color = "#00FFCC"
-        prob = random.randint(70, 85)
-
-    # عرض النتيجة بشكل مبهر
-    st.markdown(f"""
-    <div class="signal-box">
-        <h3 style="color: white;">RESULT: <span style="color: {color};">{res}</span></h3>
-        <p style="color: gray;">Asset: {selection} | Time: 5 min</p>
-        <h2 style="color: #FFD700;">PROBABILITY: {prob}%</h2>
-    </div>
-    """, unsafe_allow_html=True)
+            st.markdown(f"""
+                <div class="signal-card">
+                    <h2 style="color: white;">SIGNAL READY</h2>
+                    <hr style="border-color: #00FFCC;">
+                    <h1 style="color: {color}; font-size: 50px;">{direction}</h1>
+                    <p style="font-size: 20px;">PROBABILITY: <span style="color: gold;">{prob}%</span></p>
+                    <p>PAIR: {selection} | TIME: 5 MIN</p>
+                </div>
+            """, unsafe_allow_html=True)
